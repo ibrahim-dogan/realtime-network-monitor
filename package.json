@@ -1,0 +1,26 @@
+{
+  "name": "live-traffic-globe",
+  "version": "1.0.0",
+  "description": "Real-time network traffic visualization on a 3D globe",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js",
+    "test": "jest",
+    "dev": "nodemon agent.js"
+  },
+  "keywords": ["network", "traffic", "visualization", "globe", "3d", "macos"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jsdom": "^23.0.1",
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Traffic Globe - Real-time Network Visualization</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'cyber-blue': '#00ffff',
+                        'cyber-purple': '#8b5cf6',
+                        'cyber-pink': '#ec4899',
+                        'cyber-green': '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- External Dependencies -->
+    <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div class="text-center max-w-md mx-auto p-8">
+            <div class="text-6xl mb-4">🌍</div>
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-cyber-blue via-cyber-purple to-cyber-pink bg-clip-text text-transparent mb-4">
+                Live Traffic Globe
+            </h1>
+            <p class="text-gray-400 mb-8">Real-time Network Visualization</p>
+            
+            <div class="w-16 h-16 mx-auto border-4 border-gray-700 border-t-cyber-blue rounded-full animate-spin mb-8"></div>
+            
+            <div id="loading-status" class="text-sm text-gray-400">Initializing...</div>
+        </div>
+    </div>
+    
+    <!-- Error Screen -->
+    <div id="error-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 hidden">
+        <div class="bg-red-900 bg-opacity-20 border border-red-500 rounded-xl p-8 max-w-md mx-4 text-center glassmorphism">
+            <div class="text-red-400 text-5xl mb-4">⚠️</div>
+            <h2 class="text-2xl font-bold text-red-400 mb-4">Error</h2>
+            <p class="text-gray-300 mb-6" id="error-message">An error occurred.</p>
+            <button onclick="window.location.reload()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                Retry
+            </button>
+        </div>
+    </div>
+    
+    <!-- Main Application -->
+    <div class="relative w-screen h-screen overflow-hidden">
+        <!-- Globe Container -->
+        <div id="globe-container" class="absolute inset-0"></div>
+        
+        <!-- Status Panel -->
+        <div id="status-panel" class="absolute top-4 left-4 z-30 w-80 glassmorphism rounded-xl p-4">
+            <h2 class="text-lg font-bold mb-4 bg-gradient-to-r from-cyber-blue to-cyber-purple bg-clip-text text-transparent">
+                🌍 Live Traffic Globe
+            </h2>
+            
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span>Connection:</span>
+                    <span id="connection-status" class="text-green-400">Connecting...</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Location:</span>
+                    <span id="location-status" class="text-gray-300">Acquiring...</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Active Arcs:</span>
+                    <span id="arc-count" class="text-cyber-blue">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Total Connections:</span>
+                    <span id="connection-count" class="text-cyber-green">0</span>
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-600">
+                <h3 class="font-semibold mb-2">Recent Traffic</h3>
+                <div id="traffic-list" class="space-y-1 max-h-32 overflow-y-auto text-xs">
+                    <div class="text-gray-500 text-center py-2">No recent traffic</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Frontend Components -->
+    <script src="src/frontend/WebSocketClient.js"></script>
+    <script src="src/frontend/LocationService.js"></script>
+    <script src="src/frontend/GlobeRenderer.js"></script>
+    <script src="src/frontend/ArcManager.js"></script>
+    <script src="src/frontend/StatusDisplay.js"></script>
+    
+    <script>
+        class SimpleLiveTrafficGlobe {
+            constructor() {
+                this.webSocketClient = null;
+                this.locationService = null;
+                this.globeRenderer = null;
+                this.arcManager = null;
+                this.userLocation = null;
+                this.stats = { arcs: 0, connections: 0 };
+                
+                this.updateStatus = this.updateStatus.bind(this);
+                this.handleTrafficData = this.handleTrafficData.bind(this);
+            }
+            
+            updateStatus(message) {
+                const statusEl = document.getElementById('loading-status');
+                if (statusEl) {
+                    statusEl.textContent = message;
+                }
+                console.log('[SimpleLiveTrafficGlobe]', message);
+            }
+            
+            async start() {
+                try {
+                    this.updateStatus('Checking dependencies...');
+                    await this.waitForDependencies();
+                    
+                    this.updateStatus('Getting location...');
+                    await this.initializeLocation();
+                    
+                    this.updateStatus('Connecting to backend...');
+                    await this.initializeWebSocket();
+                    
+                    this.updateStatus('Initializing globe...');
+                    await this.initializeGlobe();
+                    
+                    this.updateStatus('Ready!');
+                    this.hideLoadingScreen();
+                    
+                } catch (error) {
+                    console.error('Failed to start:', error);
+                    this.showError(error.message);
+                }
+            }
+            
+            async waitForDependencies() {
+                const deps = ['THREE', 'Globe', 'WebSocketClient', 'LocationService', 'GlobeRenderer', 'ArcManager'];
+                let attempts = 0;
+                const maxAttempts = 20;
+                
+                while (attempts < maxAttempts) {
+                    const missing = deps.filter(dep => typeof window[dep] === 'undefined');
+                    
+                    if (missing.length === 0) {
+                        console.log('All dependencies loaded');
+                        return;
+                    }
+                    
+                    console.log('Waiting for dependencies:', missing);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    attempts++;
+                }
+                
+                throw new Error('Dependencies failed to load');
+            }
+            
+            async initializeLocation() {
+                this.locationService = new LocationService();
+                this.userLocation = await this.locationService.getCurrentLocation();
+                
+                const locationEl = document.getElementById('location-status');
+                if (locationEl && this.userLocation) {
+                    locationEl.textContent = this.userLocation.name || 
+                        `${this.userLocation.lat.toFixed(2)}, ${this.userLocation.lon.toFixed(2)}`;
+                }
+            }
+            
+            async initializeWebSocket() {
+                this.webSocketClient = new WebSocketClient('ws://localhost:8080');
+                
+                this.webSocketClient.on('open', () => {
+                    const statusEl = document.getElementById('connection-status');
+                    if (statusEl) statusEl.textContent = 'Connected';
+                });
+                
+                this.webSocketClient.on('traffic', this.handleTrafficData);
+                
+                this.webSocketClient.connect();
+                
+                // Wait for connection or timeout
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('WebSocket connection timeout'));
+                    }, 10000);
+                    
+                    this.webSocketClient.on('open', () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    });
+                    
+                    this.webSocketClient.on('error', (error) => {
+                        clearTimeout(timeout);
+                        reject(error);
+                    });
+                });
+            }
+            
+            async initializeGlobe() {
+                this.globeRenderer = new GlobeRenderer('globe-container', {
+                    pointOfView: {
+                        lat: this.userLocation.lat,
+                        lng: this.userLocation.lon,
+                        altitude: 2.5
+                    }
+                });
+                
+                await this.globeRenderer.initialize();
+                
+                this.arcManager = new ArcManager(this.globeRenderer.globe, {
+                    maxArcs: 50,
+                    arcLifetime: 30000
+                });
+                
+                this.arcManager.on('arcAdded', () => {
+                    this.stats.arcs = this.arcManager.getStats().currentArcs;
+                    this.updateStats();
+                });
+                
+                this.arcManager.on('arcRemoved', () => {
+                    this.stats.arcs = this.arcManager.getStats().currentArcs;
+                    this.updateStats();
+                });
+            }
+            
+            handleTrafficData(data) {
+                if (!this.arcManager || !this.userLocation) return;
+                
+                try {
+                    this.arcManager.addArc(data, this.userLocation);
+                    this.stats.connections++;
+                    this.updateStats();
+                    this.addTrafficToList(data);
+                } catch (error) {
+                    console.error('Error handling traffic data:', error);
+                }
+            }
+            
+            updateStats() {
+                const arcEl = document.getElementById('arc-count');
+                const connEl = document.getElementById('connection-count');
+                
+                if (arcEl) arcEl.textContent = this.stats.arcs;
+                if (connEl) connEl.textContent = this.stats.connections;
+            }
+            
+            addTrafficToList(data) {
+                const listEl = document.getElementById('traffic-list');
+                if (!listEl) return;
+                
+                // Remove "no traffic" message
+                const noTraffic = listEl.querySelector('.text-center');
+                if (noTraffic) noTraffic.remove();
+                
+                const item = document.createElement('div');
+                item.className = 'bg-gray-800 rounded p-2 mb-1';
+                item.innerHTML = `
+                    <div class="font-medium text-cyber-blue">${data.ip || 'Unknown IP'}</div>
+                    <div class="text-gray-400">${data.city || 'Unknown'}, ${data.country || 'Unknown'}</div>
+                `;
+                
+                listEl.insertBefore(item, listEl.firstChild);
+                
+                // Keep only last 5 items
+                const items = listEl.querySelectorAll('.bg-gray-800');
+                if (items.length > 5) {
+                    items[items.length - 1].remove();
+                }
+            }
+            
+            hideLoadingScreen() {
+                const loadingEl = document.getElementById('loading-screen');
+                if (loadingEl) {
+                    loadingEl.style.opacity = '0';
+                    setTimeout(() => loadingEl.style.display = 'none', 500);
+                }
+            }
+            
+            showError(message) {
+                const errorEl = document.getElementById('error-screen');
+                const messageEl = document.getElementById('error-message');
+                
+                if (errorEl && messageEl) {
+                    messageEl.textContent = message;
+                    errorEl.classList.remove('hidden');
+                }
+                
+                this.hideLoadingScreen();
+            }
+        }
+        
+        // Start the application
+        document.addEventListener('DOMContentLoaded', async () => {
+            const app = new SimpleLiveTrafficGlobe();
+            window.liveTrafficGlobe = app;
+            await app.start();
+        });
+    </script>
+</body>
+</html>
