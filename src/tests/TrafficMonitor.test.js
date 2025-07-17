@@ -214,8 +214,8 @@ describe('TrafficMonitor', () => {
         expect(trafficMonitor.connectionStates).toBeInstanceOf(Map);
         expect(trafficMonitor.ipLastSeen).toBeInstanceOf(Map);
         expect(trafficMonitor.cleanupInterval).toBeNull();
-        expect(trafficMonitor.ipCacheTimeout).toBe(300000);
-        expect(trafficMonitor.connectionCacheTimeout).toBe(60000);
+        expect(trafficMonitor.ipCacheTimeout).toBe(10000);
+        expect(trafficMonitor.connectionCacheTimeout).toBe(5000);
       });
     });
 
@@ -247,8 +247,8 @@ describe('TrafficMonitor', () => {
         trafficMonitor.updateConnectionState(connectionKey, destIP);
         expect(trafficMonitor.isNewConnection(connectionKey, destIP)).toBe(false);
         
-        // Advance time beyond IP cache timeout (5 minutes)
-        mockTime += 301000; // 5 minutes + 1 second
+        // Advance time beyond IP cache timeout (10 seconds)
+        mockTime += 11000; // 10 seconds + 1 second
         expect(trafficMonitor.isNewConnection(connectionKey, destIP)).toBe(true);
         
         // Restore original Date.now
@@ -268,8 +268,8 @@ describe('TrafficMonitor', () => {
         trafficMonitor.updateConnectionState(connectionKey, destIP);
         expect(trafficMonitor.isNewConnection(connectionKey, destIP)).toBe(false);
         
-        // Advance time beyond connection cache timeout (1 minute) but within IP timeout
-        mockTime += 61000; // 1 minute + 1 second
+        // Advance time beyond connection cache timeout (5 seconds) but within IP timeout (10 seconds)
+        mockTime += 6000; // 5 seconds + 1 second
         expect(trafficMonitor.isNewConnection(connectionKey, destIP)).toBe(false); // Still blocked by IP cache
         
         // Restore original Date.now
@@ -496,6 +496,215 @@ Chrome     1234   user  124u  IPv4 0x123457      0t0  TCP 192.168.1.100:12346->1
           ipLastSeenCount: 0,
           isCleanupRunning: false
         }
+      });
+    });
+  });
+
+  describe('Process Classification Enhancement', () => {
+    describe('enhanceConnectionData', () => {
+      test('should enhance connection data with process classification for browser', () => {
+        const connectionData = {
+          processName: 'Chrome',
+          sourceIP: '192.168.1.100',
+          sourcePort: 12345,
+          destIP: '1.2.3.4',
+          destPort: 443,
+          timestamp: Date.now()
+        };
+
+        const enhanced = trafficMonitor.enhanceConnectionData(connectionData);
+
+        expect(enhanced).toEqual({
+          ...connectionData,
+          processType: 'browser',
+          primaryColor: '#4A90E2',
+          gradientColors: ['#4A90E2', '#7BB3F0', '#B8D4F0'],
+          colorScheme: {
+            primary: '#4A90E2',
+            secondary: '#7BB3F0',
+            particles: '#B8D4F0',
+            gradient: ['#4A90E2', '#7BB3F0', '#B8D4F0']
+          }
+        });
+      });
+
+      test('should enhance connection data with process classification for system', () => {
+        const connectionData = {
+          processName: 'systemd',
+          sourceIP: '192.168.1.100',
+          sourcePort: 12345,
+          destIP: '1.2.3.4',
+          destPort: 443,
+          timestamp: Date.now()
+        };
+
+        const enhanced = trafficMonitor.enhanceConnectionData(connectionData);
+
+        expect(enhanced).toEqual({
+          ...connectionData,
+          processType: 'system',
+          primaryColor: '#50C878',
+          gradientColors: ['#50C878', '#7DD87F', '#B8E6C1'],
+          colorScheme: {
+            primary: '#50C878',
+            secondary: '#7DD87F',
+            particles: '#B8E6C1',
+            gradient: ['#50C878', '#7DD87F', '#B8E6C1']
+          }
+        });
+      });
+
+      test('should enhance connection data with process classification for media', () => {
+        const connectionData = {
+          processName: 'Spotify',
+          sourceIP: '192.168.1.100',
+          sourcePort: 12345,
+          destIP: '1.2.3.4',
+          destPort: 443,
+          timestamp: Date.now()
+        };
+
+        const enhanced = trafficMonitor.enhanceConnectionData(connectionData);
+
+        expect(enhanced).toEqual({
+          ...connectionData,
+          processType: 'media',
+          primaryColor: '#9B59B6',
+          gradientColors: ['#9B59B6', '#B574C4', '#D7BDE2'],
+          colorScheme: {
+            primary: '#9B59B6',
+            secondary: '#B574C4',
+            particles: '#D7BDE2',
+            gradient: ['#9B59B6', '#B574C4', '#D7BDE2']
+          }
+        });
+      });
+
+      test('should enhance connection data with process classification for development', () => {
+        const connectionData = {
+          processName: 'Visual Studio Code',
+          sourceIP: '192.168.1.100',
+          sourcePort: 12345,
+          destIP: '1.2.3.4',
+          destPort: 443,
+          timestamp: Date.now()
+        };
+
+        const enhanced = trafficMonitor.enhanceConnectionData(connectionData);
+
+        expect(enhanced).toEqual({
+          ...connectionData,
+          processType: 'development',
+          primaryColor: '#E67E22',
+          gradientColors: ['#E67E22', '#F39C12', '#F8C471'],
+          colorScheme: {
+            primary: '#E67E22',
+            secondary: '#F39C12',
+            particles: '#F8C471',
+            gradient: ['#E67E22', '#F39C12', '#F8C471']
+          }
+        });
+      });
+
+      test('should enhance connection data with other classification for unknown processes', () => {
+        const connectionData = {
+          processName: 'UnknownApp',
+          sourceIP: '192.168.1.100',
+          sourcePort: 12345,
+          destIP: '1.2.3.4',
+          destPort: 443,
+          timestamp: Date.now()
+        };
+
+        const enhanced = trafficMonitor.enhanceConnectionData(connectionData);
+
+        expect(enhanced).toEqual({
+          ...connectionData,
+          processType: 'other',
+          primaryColor: '#95A5A6',
+          gradientColors: ['#95A5A6', '#BDC3C7', '#D5DBDB'],
+          colorScheme: {
+            primary: '#95A5A6',
+            secondary: '#BDC3C7',
+            particles: '#D5DBDB',
+            gradient: ['#95A5A6', '#BDC3C7', '#D5DBDB']
+          }
+        });
+      });
+
+      test('should handle null or undefined process names', () => {
+        const connectionData = {
+          processName: null,
+          sourceIP: '192.168.1.100',
+          sourcePort: 12345,
+          destIP: '1.2.3.4',
+          destPort: 443,
+          timestamp: Date.now()
+        };
+
+        const enhanced = trafficMonitor.enhanceConnectionData(connectionData);
+
+        expect(enhanced.processType).toBe('other');
+        expect(enhanced.primaryColor).toBe('#95A5A6');
+      });
+    });
+
+    describe('parseConnectionData with process classification', () => {
+      test('should emit enhanced traffic events with process classification', () => {
+        const mockData = `COMMAND     PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Chrome     1234   user  123u  IPv4 0x123456      0t0  TCP 192.168.1.100:12345->1.2.3.4:443 (ESTABLISHED)
+Spotify    5678   user  124u  IPv4 0x123457      0t0  TCP 192.168.1.100:12346->5.6.7.8:80 (ESTABLISHED)`;
+        
+        const trafficEvents = [];
+        trafficMonitor.on('traffic', (data) => {
+          trafficEvents.push(data);
+        });
+        
+        trafficMonitor.parseConnectionData(mockData);
+        
+        expect(trafficEvents).toHaveLength(2);
+        
+        // Check Chrome connection (browser)
+        expect(trafficEvents[0]).toEqual(
+          expect.objectContaining({
+            processName: 'Chrome',
+            processType: 'browser',
+            primaryColor: '#4A90E2',
+            destIP: '1.2.3.4'
+          })
+        );
+        
+        // Check Spotify connection (media)
+        expect(trafficEvents[1]).toEqual(
+          expect.objectContaining({
+            processName: 'Spotify',
+            processType: 'media',
+            primaryColor: '#9B59B6',
+            destIP: '5.6.7.8'
+          })
+        );
+      });
+    });
+
+    describe('parseTrafficData with process classification', () => {
+      test('should emit enhanced traffic events with process classification for nettop data', () => {
+        const trafficEvents = [];
+        trafficMonitor.on('traffic', (data) => {
+          trafficEvents.push(data);
+        });
+
+        const data = 'Firefox.123,456,789,192.168.1.100:54321->8.8.8.8:443,,,\n';
+        trafficMonitor.parseTrafficData(data);
+
+        expect(trafficEvents).toHaveLength(1);
+        expect(trafficEvents[0]).toEqual(
+          expect.objectContaining({
+            processName: 'Firefox.123',
+            processType: 'browser',
+            primaryColor: '#4A90E2',
+            destIP: '8.8.8.8'
+          })
+        );
       });
     });
   });

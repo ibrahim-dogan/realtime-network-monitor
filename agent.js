@@ -171,7 +171,7 @@ class LiveTrafficAgent {
       if (locationData && locationData.status === 'success') {
         this.stats.locationsResolved++;
         
-        // Create message for frontend
+        // Create enhanced message for frontend with process classification
         const message = {
           type: 'traffic',
           ip: trafficData.destIP,
@@ -179,7 +179,11 @@ class LiveTrafficAgent {
           lon: locationData.lon,
           city: locationData.city,
           country: locationData.country,
-          process: trafficData.processName,
+          processName: trafficData.processName,
+          processType: trafficData.processType,
+          primaryColor: trafficData.primaryColor,
+          gradientColors: trafficData.gradientColors,
+          colorScheme: trafficData.colorScheme,
           port: trafficData.destPort,
           timestamp: trafficData.timestamp
         };

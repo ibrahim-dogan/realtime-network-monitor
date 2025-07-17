@@ -143,7 +143,11 @@ class ArcManager {
         ip: trafficData.ip || 'Unknown',
         city: trafficData.city || 'Unknown',
         country: trafficData.country || 'Unknown',
-        process: trafficData.process,
+        processName: trafficData.processName || trafficData.process,
+        processType: trafficData.processType || 'other',
+        primaryColor: trafficData.primaryColor,
+        gradientColors: trafficData.gradientColors,
+        colorScheme: trafficData.colorScheme,
         port: trafficData.port,
         timestamp: trafficData.timestamp || Date.now(),
         createdAt: Date.now(),
@@ -342,11 +346,33 @@ class ArcManager {
   }
 
   /**
-   * Gets arc color based on traffic data with beautiful gradients
-   * @param {Object} trafficData - Traffic data
+   * Gets arc color based on traffic data with process-specific colors and beautiful gradients
+   * @param {Object} trafficData - Traffic data with process classification
    * @returns {string} - Color string
    */
   getArcColor(trafficData) {
+    // Use process-specific color if available (from backend ProcessColorizer)
+    if (trafficData.primaryColor) {
+      const distance = this.calculateDistance(
+        trafficData.startLat || 0, trafficData.startLon || 0,
+        trafficData.endLat || trafficData.lat, trafficData.endLon || trafficData.lon
+      );
+      
+      // Add intensity based on distance (longer connections are brighter)
+      const maxDistance = 20000;
+      const intensity = Math.min(distance / maxDistance, 1);
+      const alpha = 0.7 + (intensity * 0.3); // 0.7 to 1.0 opacity for better visibility
+      
+      // Convert hex to rgba for transparency
+      const hex = trafficData.primaryColor.replace('#', '');
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    
+    // Fallback to port-based colors if process color not available
     const port = trafficData.port;
     const distance = this.calculateDistance(
       trafficData.startLat || 0, trafficData.startLon || 0,
@@ -376,9 +402,9 @@ class ArcManager {
     
     // Convert hex to rgba for transparency
     const hex = baseColor.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
     
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
@@ -400,7 +426,7 @@ class ArcManager {
   }
 
   /**
-   * Generates arc label text
+   * Generates arc label text with process classification
    * @param {Object} arc - Arc data
    * @returns {string} - Label text
    */
@@ -417,8 +443,14 @@ class ArcManager {
       parts.push(arc.ip);
     }
     
-    if (arc.process) {
+    if (arc.processName) {
+      parts.push(`Process: ${arc.processName}`);
+    } else if (arc.process) {
       parts.push(`Process: ${arc.process}`);
+    }
+    
+    if (arc.processType && arc.processType !== 'other') {
+      parts.push(`Type: ${arc.processType}`);
     }
     
     if (arc.port) {

@@ -66,3 +66,44 @@ The Live Traffic Globe is a real-time network traffic visualization system that 
 3. WHEN running the frontend THEN it SHALL work by opening an HTML file in any modern web browser
 4. WHEN dependencies are needed THEN they SHALL be installable via standard npm commands
 5. IF the system requires sudo permissions THEN it SHALL clearly prompt the user and explain why
+
+### Requirement 6
+
+**User Story:** As a user, I want beautiful and impressive visual effects with colorized traffic by process type, so that I can easily distinguish different types of network activity and enjoy an engaging visualization experience.
+
+#### Acceptance Criteria
+
+1. WHEN displaying traffic arcs THEN the system SHALL colorize arcs based on the originating process or application type
+2. WHEN showing different process types THEN the system SHALL use distinct color schemes (e.g., browsers in blue, system processes in green, media apps in purple)
+3. WHEN rendering arcs THEN the system SHALL include smooth gradient effects and particle animations along the arc paths
+4. WHEN displaying connection points THEN the system SHALL show pulsing rings and glowing effects at destination locations
+5. WHEN traffic volume is high THEN the system SHALL adjust arc thickness and intensity based on data volume
+6. IF multiple connections exist to the same destination THEN the system SHALL aggregate them with enhanced visual effects
+
+### Requirement 7
+
+**User Story:** As a user, I want smooth and impressive animations throughout the interface, so that the visualization feels dynamic and engaging to watch.
+
+#### Acceptance Criteria
+
+1. WHEN new traffic appears THEN arcs SHALL animate smoothly from origin to destination with easing effects
+2. WHEN arcs complete their journey THEN they SHALL fade out gracefully with particle dispersion effects
+3. WHEN the globe rotates THEN it SHALL move smoothly with momentum-based physics
+4. WHEN hovering over elements THEN they SHALL respond with smooth scale and glow transitions
+5. WHEN data updates THEN the interface SHALL transition smoothly without jarring changes
+6. IF performance allows THEN the system SHALL include ambient particle effects around the globe
+
+### Requirement 8
+
+**User Story:** As a user, I want comprehensive control options and filters, so that I can customize what traffic I see and how it's displayed according to my preferences.
+
+#### Acceptance Criteria
+
+1. WHEN using the interface THEN I SHALL be able to filter traffic by process name or application type
+2. WHEN viewing traffic THEN I SHALL be able to toggle different categories on/off (browsers, system, media, etc.)
+3. WHEN customizing display THEN I SHALL be able to adjust arc colors, thickness, and animation speed
+4. WHEN analyzing traffic THEN I SHALL be able to set geographic filters to show/hide traffic from specific regions
+5. WHEN monitoring THEN I SHALL be able to adjust the time window for how long arcs remain visible
+6. WHEN exploring data THEN I SHALL be able to pause/resume the live feed and replay recent activity
+7. IF I want detailed information THEN I SHALL be able to click on arcs or destinations to see connection details
+8. WHEN personalizing THEN I SHALL be able to save and load different visualization presets

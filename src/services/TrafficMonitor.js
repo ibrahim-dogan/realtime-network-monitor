@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const EventEmitter = require('events');
 const CONFIG = require('../config');
 const IPFilter = require('../utils/IPFilter');
+const ProcessColorizer = require('../utils/ProcessColorizer');
 
 /**
  * TrafficMonitor class for spawning and managing nettop subprocess
@@ -13,6 +14,7 @@ class TrafficMonitor extends EventEmitter {
     this.nettopProcess = null;
     this.isRunning = false;
     this.ipFilter = new IPFilter();
+    this.processColorizer = new ProcessColorizer();
     this.restartAttempts = 0;
     this.maxRestartAttempts = 3;
     this.restartDelay = 1000; // Start with 1 second delay
@@ -288,13 +290,16 @@ class TrafficMonitor extends EventEmitter {
           
           // Check if this is a new connection we haven't processed recently
           if (this.isNewConnection(connectionKey, connectionData.destIP)) {
-            console.log(`[TrafficMonitor] New connection: ${connectionData.processName} -> ${connectionData.destIP}:${connectionData.destPort}`);
+            // Enhance connection data with process classification
+            const enhancedConnectionData = this.enhanceConnectionData(connectionData);
+            
+            console.log(`[TrafficMonitor] New connection: ${enhancedConnectionData.processName} (${enhancedConnectionData.processType}) -> ${enhancedConnectionData.destIP}:${enhancedConnectionData.destPort}`);
             
             // Update tracking state
             this.updateConnectionState(connectionKey, connectionData.destIP);
             
             // Emit traffic event for new connections only
-            this.emit('traffic', connectionData);
+            this.emit('traffic', enhancedConnectionData);
             newConnectionsCount++;
           } else {
             duplicatesFiltered++;
@@ -343,13 +348,16 @@ class TrafficMonitor extends EventEmitter {
           
           // For nettop, be less aggressive with deduplication since it's real-time
           if (this.isNewConnectionForRealTime(connectionKey, trafficData.destIP)) {
-            console.log(`[TrafficMonitor] Real-time connection: ${trafficData.processName} -> ${trafficData.destIP}:${trafficData.destPort}`);
+            // Enhance traffic data with process classification
+            const enhancedTrafficData = this.enhanceConnectionData(trafficData);
+            
+            console.log(`[TrafficMonitor] Real-time connection: ${enhancedTrafficData.processName} (${enhancedTrafficData.processType}) -> ${enhancedTrafficData.destIP}:${enhancedTrafficData.destPort}`);
             
             // Update tracking state
             this.updateConnectionState(connectionKey, trafficData.destIP);
             
             // Emit traffic event
-            this.emit('traffic', trafficData);
+            this.emit('traffic', enhancedTrafficData);
             newConnectionsCount++;
           } else {
             duplicatesFiltered++;
@@ -572,6 +580,25 @@ class TrafficMonitor extends EventEmitter {
     if (expiredConnections > 0 || expiredIPs > 0) {
       console.log(`[TrafficMonitor] Cache cleanup: ${expiredConnections} connections, ${expiredIPs} IPs expired`);
     }
+  }
+
+  /**
+   * Enhances connection data with process classification and color information
+   * @param {Object} connectionData - Raw connection data
+   * @returns {Object} - Enhanced connection data with process type and color info
+   */
+  enhanceConnectionData(connectionData) {
+    // Get process classification and color information
+    const processColorInfo = this.processColorizer.getProcessColorInfo(connectionData.processName);
+    
+    // Create enhanced connection data with all required fields for WebSocket message
+    return {
+      ...connectionData,
+      processType: processColorInfo.processType,
+      primaryColor: processColorInfo.primaryColor,
+      gradientColors: processColorInfo.gradientColors,
+      colorScheme: processColorInfo.colorScheme
+    };
   }
 
   /**
