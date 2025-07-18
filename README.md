@@ -1,6 +1,6 @@
 # Live Traffic Globe
 
-A real-time network traffic visualization system that monitors outgoing network connections from a macOS machine and displays them as animated arcs on a 3D globe.
+A real-time network traffic visualization system that monitors outgoing network connections from a macOS machine and displays them as animated arcs on a 3D globe. 
 
 ## Features
 
